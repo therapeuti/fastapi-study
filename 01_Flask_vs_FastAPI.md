@@ -59,6 +59,141 @@ async def read_root():
 - FastAPI는 자동으로 JSON 변환 (dict 반환 가능)
 - Flask는 명시적으로 `jsonify()` 사용 필요
 
+### 2.1.1 애플리케이션 실행 방식 (중요!)
+
+#### Flask의 app.run() 사용
+
+```python
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def read_root():
+    return {"message": "Hello World"}
+
+if __name__ == "__main__":
+    # Flask의 내장 개발 서버 사용
+    app.run(debug=True, host="127.0.0.1", port=5000)
+```
+
+**Flask app.run() 주요 파라미터:**
+
+| 파라미터 | 설명 | 기본값 | 예시 |
+|---------|------|--------|------|
+| `debug` | 디버그 모드 (자동 리로드) | `False` | `debug=True` |
+| `host` | 바인드할 호스트 | `127.0.0.1` | `host="0.0.0.0"` |
+| `port` | 포트 번호 | `5000` | `port=8000` |
+| `threaded` | 스레드 활성화 | `False` | `threaded=True` |
+| `use_reloader` | 코드 변경 감지 리로드 | `True` | `use_reloader=True` |
+| `ssl_context` | SSL/HTTPS 설정 | `None` | `ssl_context='adhoc'` |
+
+```python
+# Flask 실행 예제
+if __name__ == "__main__":
+    # 개발 환경
+    app.run(debug=True, port=8000)
+
+    # 프로덕션 환경
+    app.run(debug=False, host="0.0.0.0", port=8000, threaded=True)
+
+    # HTTPS
+    app.run(ssl_context='adhoc', port=443)
+```
+
+#### FastAPI의 실행 방식
+
+FastAPI는 WSGI/WSGI가 아닌 **ASGI** 기반이므로 직접 `app.run()` 메서드가 없습니다.
+대신 **Uvicorn** (또는 다른 ASGI 서버)을 사용하여 실행합니다.
+
+**방식 1: 명령줄에서 실행 (권장)**
+
+```bash
+# 기본 실행
+uvicorn main:app --reload
+
+# 호스트와 포트 지정
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# FastAPI CLI (v0.109 이상)
+fastapi dev main.py
+fastapi run main.py
+```
+
+**방식 2: Python 코드에서 실행**
+
+```python
+from fastapi import FastAPI
+import uvicorn
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
+
+if __name__ == "__main__":
+    # Uvicorn으로 실행
+    uvicorn.run(
+        app,
+        host="127.0.0.1",
+        port=8000,
+        reload=True
+    )
+```
+
+**Uvicorn 주요 파라미터:**
+
+| 파라미터 | 설명 | 기본값 | 예시 |
+|---------|------|--------|------|
+| `app` | ASGI 애플리케이션 | 필수 | `app` |
+| `host` | 바인드할 호스트 | `127.0.0.1` | `host="0.0.0.0"` |
+| `port` | 포트 번호 | `8000` | `port=8000` |
+| `reload` | 자동 리로드 | `False` | `reload=True` |
+| `workers` | 워커 프로세스 수 | `1` | `workers=4` |
+| `log_level` | 로그 레벨 | `info` | `log_level="debug"` |
+| `access_log` | 접근 로그 출력 | `True` | `access_log=True` |
+| `ssl_keyfile` | SSL 키 파일 | `None` | `ssl_keyfile="key.pem"` |
+| `ssl_certfile` | SSL 인증서 파일 | `None` | `ssl_certfile="cert.pem"` |
+
+```python
+import uvicorn
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
+
+if __name__ == "__main__":
+    # 개발 환경
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+
+    # 프로덕션 환경 (여러 워커)
+    uvicorn.run(app, host="0.0.0.0", port=8000, workers=4)
+
+    # HTTPS
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=443,
+        ssl_keyfile="key.pem",
+        ssl_certfile="cert.pem"
+    )
+```
+
+#### 비교 요약
+
+| 측면 | Flask | FastAPI |
+|------|-------|---------|
+| **실행 방식** | `app.run()` 직접 호출 | Uvicorn 사용 |
+| **명령줄** | Flask 없음 | `uvicorn main:app --reload` |
+| **개발 서버** | 내장 (간단하지만 느림) | Uvicorn (빠르고 강력) |
+| **자동 리로드** | `debug=True` | `--reload` 또는 `reload=True` |
+| **멀티 워커** | 어려움 | `--workers 4` |
+| **비동기** | 제한적 | 완전 지원 |
+
 ---
 
 ### 2.2 Path 파라미터 처리
@@ -463,6 +598,206 @@ Flask에서 FastAPI로 마이그레이션할 때 확인해야 할 사항:
 3. **비동기 이해하기**: `async/await` 문법 숙달
 4. **의존성 주입 활용하기**: 깔끔한 코드 작성
 5. **자동 문서 활용하기**: 개발 중 `/docs` 확인
+
+---
+
+## 2.2 실전 실행 방식 비교
+
+### 개발 환경에서의 실행
+
+#### Flask
+```bash
+# 방법 1: Python에서 직접 실행
+python app.py
+
+# 방법 2: Flask CLI 사용
+flask run --debug --port 8000
+
+# 방법 3: Gunicorn 사용 (개발용)
+gunicorn -w 1 -b 0.0.0.0:8000 --reload app:app
+```
+
+```python
+# app.py
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello():
+    return {"message": "Hello"}
+
+if __name__ == "__main__":
+    # 개발: 자동 리로드, 디버거 활성화
+    app.run(debug=True, host="0.0.0.0", port=8000)
+```
+
+#### FastAPI
+```bash
+# 방법 1: FastAPI CLI (권장, v0.109+)
+fastapi dev main.py
+
+# 방법 2: Uvicorn 명령줄
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 방법 3: Python에서 실행
+python main.py
+```
+
+```python
+# main.py
+from fastapi import FastAPI
+import uvicorn
+
+app = FastAPI()
+
+@app.get("/")
+async def hello():
+    return {"message": "Hello"}
+
+if __name__ == "__main__":
+    # 개발: 자동 리로드 활성화
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+```
+
+### 프로덕션 환경에서의 실행
+
+#### Flask
+```bash
+# Gunicorn으로 여러 워커 실행
+gunicorn -w 4 -b 0.0.0.0:8000 app:app
+
+# Gunicorn + Nginx (권장)
+# nginx.conf에서 uvicorn으로 프록시
+upstream flask_app {
+    server 127.0.0.1:8000;
+}
+```
+
+```python
+# app.py - 프로덕션
+if __name__ == "__main__":
+    app.run(debug=False, host="0.0.0.0", port=8000)
+```
+
+#### FastAPI
+```bash
+# Uvicorn으로 여러 워커 실행 (권장)
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Gunicorn + Uvicorn workers
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
+```
+
+```python
+# main.py - 프로덕션
+if __name__ == "__main__":
+    # 프로덕션: 여러 워커, 리로드 비활성화
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=4,
+        reload=False,
+        access_log=True
+    )
+```
+
+### 환경 변수로 설정 관리
+
+#### Flask
+```python
+import os
+from flask import Flask
+
+app = Flask(__name__)
+
+if __name__ == "__main__":
+    debug = os.getenv("DEBUG", "False") == "True"
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", 5000))
+
+    app.run(debug=debug, host=host, port=port)
+```
+
+```bash
+# 실행
+DEBUG=True HOST=0.0.0.0 PORT=8000 python app.py
+```
+
+#### FastAPI
+```python
+import os
+import uvicorn
+from fastapi import FastAPI
+
+app = FastAPI()
+
+if __name__ == "__main__":
+    debug = os.getenv("DEBUG", "False") == "True"
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", 8000))
+    workers = int(os.getenv("WORKERS", 1))
+
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        reload=debug,
+        workers=workers if not debug else 1
+    )
+```
+
+```bash
+# 실행
+DEBUG=True HOST=0.0.0.0 PORT=8000 WORKERS=4 python main.py
+```
+
+### Docker에서의 실행
+
+#### Flask
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "app:app"]
+```
+
+#### FastAPI
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+```
+
+### 요약 테이블
+
+| 측면 | Flask | FastAPI |
+|------|-------|---------|
+| **개발 실행** | `app.run(debug=True)` | `uvicorn main:app --reload` |
+| **프로덕션 서버** | Gunicorn | Uvicorn/Gunicorn |
+| **멀티 워커** | Gunicorn의 `-w` 옵션 | Uvicorn의 `--workers` 옵션 |
+| **자동 리로드** | `debug=True` | `--reload` 또는 `reload=True` |
+| **HTTPS** | `ssl_context` | `ssl_keyfile/ssl_certfile` |
+| **성능** | ~100-200 rps (1 worker) | ~1000+ rps (1 worker) |
+| **비동기** | 제한적 | 완전 지원 |
+
+**핵심 차이점:**
+- Flask는 WSGI 기반으로 **Gunicorn** 필수
+- FastAPI는 ASGI 기반으로 **Uvicorn** 사용
+- FastAPI가 비동기 작업에 훨씬 효율적
+- FastAPI는 적은 워커로 더 많은 동시 연결 처리 가능
 
 ---
 
