@@ -142,6 +142,201 @@ if __name__ == "__main__":
     )
 ```
 
+### 주의: reload 또는 workers 사용 시 임포트 문자열 필요
+
+**문제 상황:**
+```
+WARNING:  You must pass the application as an import string to enable 'reload' or 'workers'.
+```
+
+이 경고가 나타나는 이유는 `reload=True` 또는 `workers > 1`을 사용할 때 **Uvicorn이 여러 프로세스를 생성해야 하는데**, Python 객체는 프로세스 간 전달할 수 없기 때문입니다.
+
+**원인 분석:**
+
+```python
+# ❌ 잘못된 방식 (경고 발생)
+if __name__ == "__main__":
+    uvicorn.run(app, reload=True)  # app 객체 직접 전달
+    # 경고: WARNING:  You must pass the application as an import string...
+```
+
+Uvicorn이 새로운 프로세스를 생성할 때, `app` 객체를 직렬화(pickle)할 수 없어서 경고가 나타납니다.
+
+**해결책: 임포트 문자열 사용**
+
+```python
+# ✅ 올바른 방식 1: 문자열로 지정
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",  # 모듈명:앱객체명 형식
+        host="127.0.0.1",
+        port=8000,
+        reload=True
+    )
+
+# ✅ 올바른 방식 2: 모듈 경로 포함
+if __name__ == "__main__":
+    uvicorn.run(
+        "myapp.main:app",  # 패키지.모듈:앱
+        host="0.0.0.0",
+        port=8000,
+        workers=4
+    )
+```
+
+**파일 구조별 예제:**
+
+1️⃣ **단일 파일 구조 (권장)**
+```
+project/
+├── main.py
+└── requirements.txt
+```
+
+```python
+# main.py
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello"}
+
+if __name__ == "__main__":
+    import uvicorn
+    # "main:app" = 모듈명:앱객체명
+    uvicorn.run("main:app", reload=True, host="0.0.0.0", port=8000)
+```
+
+실행:
+```bash
+python main.py
+```
+
+2️⃣ **패키지 구조**
+```
+project/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   └── routes.py
+└── run.py
+```
+
+```python
+# app/main.py
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello"}
+```
+
+```python
+# run.py
+import uvicorn
+
+if __name__ == "__main__":
+    # "app.main:app" = 패키지.모듈:앱
+    uvicorn.run("app.main:app", reload=True, port=8000)
+```
+
+실행:
+```bash
+python run.py
+```
+
+**3️⃣ 복잡한 초기화가 필요한 경우**
+
+때로는 앱을 생성할 때 복잡한 초기화 로직이 필요할 수 있습니다.
+
+```python
+# main.py
+from fastapi import FastAPI
+
+def create_app():
+    app = FastAPI(title="My App")
+
+    # 복잡한 초기화 로직
+    @app.on_event("startup")
+    async def startup():
+        print("App starting up...")
+
+    @app.get("/")
+    async def read_root():
+        return {"message": "Hello"}
+
+    return app
+
+app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    # ✅ app이 모듈 수준에서 정의되어 있어야 함
+    uvicorn.run("main:app", reload=True, port=8000)
+```
+
+---
+
+**reload와 workers 파라미터별 동작:**
+
+| 상황 | reload | workers | 필요한 형식 | 설명 |
+|------|--------|---------|----------|------|
+| 개발 (자동 리로드) | `True` | 1 | `"main:app"` | 코드 변경 시 자동 재시작 |
+| 프로덕션 (다중 워커) | `False` | > 1 | `"main:app"` | 여러 프로세스 병렬 실행 |
+| 개발 (리로드 없음) | `False` | 1 | `app` 또는 `"main:app"` | 경고 없음 |
+| 프로덕션 (단일 워커) | `False` | 1 | `app` 또는 `"main:app"` | 경고 없음 |
+
+```python
+# ❌ 이 조합들은 경고 발생
+uvicorn.run(app, reload=True)           # app 객체 + reload=True
+uvicorn.run(app, workers=4)             # app 객체 + workers > 1
+
+# ✅ 이 조합들은 경고 없음
+uvicorn.run("main:app", reload=True)    # 문자열 + reload=True
+uvicorn.run("main:app", workers=4)      # 문자열 + workers > 1
+uvicorn.run(app, reload=False, workers=1)  # app 객체 + 리로드/다중워커 없음
+```
+
+---
+
+**실전 권장 패턴:**
+
+```python
+# main.py
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # 개발 환경: 자동 리로드 활성화
+    uvicorn.run("main:app", reload=True, host="0.0.0.0", port=8000)
+```
+
+명령줄에서도 같은 방식으로 실행 가능합니다:
+
+```bash
+# 방법 1: FastAPI CLI (권장)
+fastapi dev main.py
+
+# 방법 2: Uvicorn 명령줄
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 방법 3: Python 스크립트
+python main.py
+```
+
+모두 동일한 결과를 제공하며, **경고 메시지가 나타나지 않습니다!** ✅
+
 **Uvicorn 주요 파라미터:**
 
 | 파라미터 | 설명 | 기본값 | 예시 |

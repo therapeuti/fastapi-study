@@ -606,15 +606,127 @@ GET http://localhost:8000/users/1
 
 ### 12.1 서버 실행
 
-```bash
-# 개발 모드 (자동 리로드)
-fastapi dev main.py
+#### 방식 1: FastAPI CLI (권장)
 
-# 또는
+```bash
+# 가장 간단한 방식 (v0.109+)
+fastapi dev main.py
+```
+
+#### 방식 2: Uvicorn 명령줄
+
+```bash
+# 기본 실행
 uvicorn main:app --reload
 
-# 다른 호스트/포트
-uvicorn main:app --host 0.0.0.0 --port 5000
+# 호스트와 포트 지정
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### 방식 3: Python 스크립트에서 실행
+
+```python
+# main.py
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
+
+if __name__ == "__main__":
+    import uvicorn
+    # ⭐ 중요: 파라미터가 reload=True나 workers>1이면 앱을 문자열로 지정!
+    uvicorn.run("main:app", reload=True, host="0.0.0.0", port=8000)
+```
+
+실행:
+```bash
+python main.py
+```
+
+### 12.1.1 Reload 경고 메시지 해결
+
+**문제 상황:**
+```
+WARNING:  You must pass the application as an import string to enable 'reload' or 'workers'.
+```
+
+이 경고가 나타나는 이유와 해결법:
+
+**❌ 잘못된 코드 (경고 발생)**
+```python
+if __name__ == "__main__":
+    import uvicorn
+    # 앱 객체를 직접 전달하고 reload=True를 사용하면 경고 발생!
+    uvicorn.run(app, reload=True)
+```
+
+**✅ 올바른 코드 (경고 없음)**
+```python
+if __name__ == "__main__":
+    import uvicorn
+    # 앱을 문자열로 지정 (모듈명:앱객체명)
+    uvicorn.run("main:app", reload=True, host="0.0.0.0", port=8000)
+```
+
+**원인 설명:**
+
+`reload=True` 또는 `workers > 1`을 사용하면 Uvicorn이 **여러 프로세스를 생성**합니다.
+이때 Python 객체는 프로세스 간 전달할 수 없으므로 **문자열 형식의 임포트 경로**를 사용해야 합니다.
+
+**해결책 정리:**
+
+| 상황 | 파라미터 | 올바른 사용법 |
+|------|---------|------------|
+| 개발 (자동 리로드) | `reload=True` | `uvicorn.run("main:app", reload=True)` |
+| 프로덕션 (다중 워커) | `workers=4` | `uvicorn.run("main:app", workers=4)` |
+| 개발 (리로드 없음) | `reload=False` | `uvicorn.run(app, reload=False)` 또는 문자열 가능 |
+| 프로덕션 (단일 워커) | `workers=1` | `uvicorn.run(app, workers=1)` 또는 문자열 가능 |
+
+**권장 패턴:**
+
+```python
+# main.py - 개발 및 프로덕션 모두 작동
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
+
+if __name__ == "__main__":
+    import uvicorn
+    # 이 방식은 모든 경우에 경고가 없습니다
+    uvicorn.run("main:app", reload=True, host="0.0.0.0", port=8000)
+```
+
+**패키지 구조에서의 사용:**
+
+만약 다음과 같은 구조라면:
+```
+project/
+├── app/
+│   ├── __init__.py
+│   └── main.py
+└── run.py
+```
+
+`run.py`에서:
+```python
+# run.py
+import uvicorn
+
+if __name__ == "__main__":
+    # 패키지.모듈:앱 형식으로 지정
+    uvicorn.run("app.main:app", reload=True, port=8000)
+```
+
+실행:
+```bash
+python run.py
 ```
 
 ### 12.2 curl로 테스트
