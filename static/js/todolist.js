@@ -8,41 +8,56 @@
 
 
 
-
+// 페이지 로드 시 투두리스트 조회
 get_todolist()
 
 const todoinput = document.getElementById('todo-input')
 const submit = document.getElementById('submit')
 
+
 // 투두리스트 추가
 submit.addEventListener('click', async (e) => {
     e.preventDefault();
     
-    
+    console.log(todoinput)
+    console.log(todoinput.value)
+    console.log(JSON.stringify(todoinput.value))
+    console.log(JSON.stringify({
+            todo: todoinput.value
+            // status는 기본값 지정되어있으므로 생략
+        }))
+
     await fetch('/api/todo/', {
         method: 'post',
         headers: {'content-type':'application/json'},
-        body: JSON.stringify(todoinput.value)
+        body: JSON.stringify({
+            todo: todoinput.value
+            // status는 기본값 지정되어있으므로 생략
+        })
     })
 
-
+    // 투두리스트 추가 후 조회
     await get_todolist()
     todoinput.value = ''
 })
 
-document.addEventListener('click', (e) => {
+
+// 투두리스트 상태 수정 또는 삭제 후 조회
+document.addEventListener('click', async (e) => {
+    // 상태 수정
     if ((e.target.tagName === 'LI') && (!e.target.classList.contains('del'))) {
         // 서버로 보내서 정보 수정하고 받아와서 적용
         console.log('클릭: ', e.target)
-        updateStatus(e.target.dataset.id);
+        await updateStatus(e.target.dataset.id);
         get_todolist()
     }
 
+    // 투두리스트 삭제
     const delButton = e.target.closest('button.del');
     if (delButton) {
         console.log('삭제 버튼 누름')
 
-        deleteTodo(delButton.dataset.id)  
+        await deleteTodo(delButton.dataset.id)  
         get_todolist()      
     }
 })
@@ -51,11 +66,13 @@ document.addEventListener('click', (e) => {
 async function get_todolist() {
     const response = await fetch('/api/todo/');
     const data = await response.json();
-    console.log(data.todolist);
+    console.log('조회 : ', data.todolist);
 
     addTodolist(data.todolist)
 }
 
+
+// 투두리스트 렌더링
 function addTodolist(todolist) {
     const todoList = document.getElementById('todo-list')
     todoList.innerHTML = ''
