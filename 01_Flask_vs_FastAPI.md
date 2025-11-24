@@ -592,6 +592,281 @@ async def get_item(item_id: int):
 
 ---
 
+### 2.7 HTML 템플릿 렌더링
+
+#### Flask에서 HTML 템플릿 렌더링
+
+**Flask:**
+```python
+from flask import Flask, render_template
+
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return render_template("index.html", title="Home")
+
+@app.route("/items/")
+def list_items():
+    items = [
+        {"id": 1, "name": "Laptop", "price": 1000},
+        {"id": 2, "name": "Phone", "price": 500}
+    ]
+    return render_template("items.html", items=items)
+```
+
+**templates/index.html:**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+</body>
+</html>
+```
+
+**특징:**
+- `render_template()` 함수 사용
+- 서버에서 HTML 생성 후 클라이언트에 전송
+- Jinja2 템플릿 엔진 기본 탑재
+- 데이터를 템플릿 변수로 전달
+
+---
+
+#### FastAPI에서 HTML 템플릿 렌더링
+
+**방법 1: Jinja2 템플릿 (권장)**
+
+먼저 Jinja2 설치:
+```bash
+pip install jinja2
+```
+
+```python
+from fastapi import FastAPI
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
+
+app = FastAPI()
+
+# templates 디렉토리에서 템플릿 로드
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/")
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "title": "Home"
+    })
+
+@app.get("/items/")
+async def list_items(request: Request):
+    items = [
+        {"id": 1, "name": "Laptop", "price": 1000},
+        {"id": 2, "name": "Phone", "price": 500}
+    ]
+    return templates.TemplateResponse("items.html", {
+        "request": request,
+        "items": items
+    })
+```
+
+**templates/index.html:**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+</body>
+</html>
+```
+
+**templates/items.html:**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Items</title>
+</head>
+<body>
+    <h1>Items List</h1>
+    <ul>
+    {% for item in items %}
+        <li>{{ item.name }} - ${{ item.price }}</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
+```
+
+**특징:**
+- `Jinja2Templates` 사용
+- `templates.TemplateResponse()` 반환
+- **중요**: `request` 객체를 반드시 포함해야 함
+- Flask와 동일한 Jinja2 문법
+
+---
+
+**방법 2: HTML 문자열 직접 반환**
+
+```python
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+
+app = FastAPI()
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    html = """
+    <html>
+        <head>
+            <title>Home</title>
+        </head>
+        <body>
+            <h1>Welcome</h1>
+        </body>
+    </html>
+    """
+    return html
+```
+
+**특징:**
+- 간단한 HTML만 필요할 때 사용
+- 템플릿 파일 불필요
+- 동적 데이터 처리가 복잡함
+
+---
+
+#### FastAPI와 Flask의 템플릿 렌더링 비교
+
+| 측면 | Flask | FastAPI |
+|------|-------|---------|
+| **라이브러리** | `render_template()` 내장 | Jinja2 직접 설정 필요 |
+| **템플릿 엔진** | Jinja2 기본 | Jinja2 또는 다른 엔진 |
+| **Response 타입** | 문자열 | `TemplateResponse` |
+| **Request 객체** | 자동 제공 | 명시적으로 전달 필요 |
+| **용도** | 웹사이트 (MVC) | API + 정적 파일 제공 |
+| **템플릿 디렉토리** | `templates/` (기본값) | 수동으로 지정 |
+
+---
+
+#### FastAPI 프로젝트 구조 (권장)
+
+```
+project/
+├── main.py
+├── requirements.txt
+├── templates/
+│   ├── index.html
+│   ├── items.html
+│   └── base.html
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── script.js
+│   └── images/
+└── .gitignore
+```
+
+**main.py:**
+```python
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
+
+app = FastAPI()
+
+# 정적 파일 (CSS, JS, 이미지) 제공
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 템플릿 로드
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/")
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "title": "Home"
+    })
+
+@app.get("/items/")
+async def list_items(request: Request):
+    items = [
+        {"id": 1, "name": "Laptop", "price": 1000},
+        {"id": 2, "name": "Phone", "price": 500}
+    ]
+    return templates.TemplateResponse("items.html", {
+        "request": request,
+        "items": items
+    })
+```
+
+**templates/base.html (기본 템플릿):**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}My App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/items/">Items</a>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <script src="{{ url_for('static', path='/js/script.js') }}"></script>
+</body>
+</html>
+```
+
+**templates/items.html (상속):**
+```html
+{% extends "base.html" %}
+
+{% block title %}Items - My App{% endblock %}
+
+{% block content %}
+    <h1>Items List</h1>
+    <ul>
+    {% for item in items %}
+        <li>
+            <a href="/items/{{ item.id }}">
+                {{ item.name }} - ${{ item.price }}
+            </a>
+        </li>
+    {% endfor %}
+    </ul>
+{% endblock %}
+```
+
+---
+
+#### FastAPI vs Flask: HTML 렌더링 요약
+
+| 작업 | Flask | FastAPI |
+|------|-------|---------|
+| **기본 설정** | `from flask import render_template` | `from fastapi.templating import Jinja2Templates` |
+| **템플릿 로드** | 자동 | `Jinja2Templates(directory="templates")` |
+| **렌더링** | `render_template("file.html", data)` | `templates.TemplateResponse("file.html", {"request": request, "data": data})` |
+| **정적 파일** | `static/` 폴더 자동 | `app.mount("/static", StaticFiles(...))` |
+| **URL 생성** | `url_for()` | `url_for()` 또는 절대 경로 |
+| **용도** | 웹 애플리케이션 | API + 웹 UI |
+| **성능** | 중간 | 높음 (비동기) |
+
+---
+
 ## 3. 비동기 처리
 
 ### 3.1 Flask의 비동기
