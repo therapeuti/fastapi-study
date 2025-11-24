@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI - Error Handling 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sections {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .section h3 {
+            color: #555;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result-title {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result-content {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result-url {
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 10px;
+            word-break: break-all;
+            background: #e8eaf6;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .error {
+            color: #d32f2f;
+            border-left-color: #d32f2f;
+        }
+
+        .success {
+            color: #388e3c;
+            border-left-color: #388e3c;
+        }
+
+        .param-info {
+            font-size: 0.8em;
+            color: #999;
+            margin-top: 3px;
+        }
+
+        .status-code {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-200 {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .status-400 {
+            background: #ffccbc;
+            color: #d84315;
+        }
+
+        .status-404 {
+            background: #ffe0b2;
+            color: #e65100;
+        }
+
+        .status-422 {
+            background: #ffccbc;
+            color: #d84315;
+        }
+
+        .status-500 {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .error-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .error-card {
+            padding: 12px;
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .error-card:hover {
+            background: #eeeeee;
+            transform: translateX(4px);
+        }
+
+        .error-card-code {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .error-card-desc {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .examples {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f4ff;
+            border-radius: 4px;
+            line-height: 1.6;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #0d47a1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ FastAPI - Error Handling 테스트</h1>
+
+        <div class="sections">
+            <!-- Section 1: 400 Bad Request -->
+            <div class="section">
+                <h2>1️⃣ 400 Bad Request</h2>
+                <p style="color: #666; margin-bottom: 15px;">잘못된 입력 데이터 처리</p>
+
+                <div class="info-box">
+                    가격이 음수이거나 잘못된 경우 400 에러가 반환됩니다.
+                </div>
+
+                <div class="form-group">
+                    <label for="bad-price">가격 (음수 입력 시 에러):</label>
+                    <input type="number" id="bad-price" placeholder="음수 입력" value="-100" step="0.01">
+                    <div class="param-info">음수를 입력하면 400 에러 발생</div>
+                </div>
+
+                <button onclick="testBadRequest()">POST /items/validate</button>
+
+                <div class="examples">
+                    <strong>테스트:</strong><br>
+                    ✅ 올바른 값: <span style="cursor: pointer; color: #667eea;" onclick="setInput('bad-price', '100'); testBadRequest();">100</span><br>
+                    ❌ 잘못된 값: <span style="cursor: pointer; color: #d32f2f;" onclick="setInput('bad-price', '-50'); testBadRequest();">-50</span>
+                </div>
+
+                <div class="result" id="bad-request-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="bad-request-content"></div>
+                    <div class="result-url" id="bad-request-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 2: 404 Not Found -->
+            <div class="section">
+                <h2>2️⃣ 404 Not Found</h2>
+                <p style="color: #666; margin-bottom: 15px;">존재하지 않는 리소스 조회</p>
+
+                <div class="info-box">
+                    데이터베이스에 없는 item_id를 조회하면 404 에러가 반환됩니다.
+                </div>
+
+                <div class="form-group">
+                    <label for="item-id-404">Item ID:</label>
+                    <input type="number" id="item-id-404" placeholder="존재하지 않는 ID" value="9999">
+                    <div class="param-info">존재하지 않는 ID를 입력하세요</div>
+                </div>
+
+                <button onclick="testNotFound()">GET /items/{item_id}</button>
+
+                <div class="examples">
+                    <strong>테스트:</strong><br>
+                    ✅ 존재하는 ID: <span style="cursor: pointer; color: #667eea;" onclick="setInput('item-id-404', '1'); testNotFound();">1</span><br>
+                    ❌ 없는 ID: <span style="cursor: pointer; color: #d32f2f;" onclick="setInput('item-id-404', '9999'); testNotFound();">9999</span>
+                </div>
+
+                <div class="result" id="not-found-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="not-found-content"></div>
+                    <div class="result-url" id="not-found-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 3: 422 Unprocessable Entity -->
+            <div class="section">
+                <h2>3️⃣ 422 Unprocessable Entity</h2>
+                <p style="color: #666; margin-bottom: 15px;">타입 검증 실패 또는 필수 필드 누락</p>
+
+                <div class="info-box">
+                    필수 필드가 누락되거나 타입이 맞지 않으면 422 에러가 반환됩니다.
+                </div>
+
+                <div class="form-group">
+                    <label for="validation-input">입력값:</label>
+                    <input type="text" id="validation-input" placeholder="문자열을 입력하세요" value="not-a-number">
+                    <div class="param-info">숫자가 아닌 값을 입력하면 422 에러 발생</div>
+                </div>
+
+                <button onclick="testUnprocessable()">POST /items/validate (숫자 필수)</button>
+
+                <div class="examples">
+                    <strong>테스트:</strong><br>
+                    ✅ 숫자: <span style="cursor: pointer; color: #667eea;" onclick="setInput('validation-input', '100'); testUnprocessable();">100</span><br>
+                    ❌ 문자: <span style="cursor: pointer; color: #d32f2f;" onclick="setInput('validation-input', 'abc'); testUnprocessable();">abc</span>
+                </div>
+
+                <div class="result" id="unprocessable-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="unprocessable-content"></div>
+                    <div class="result-url" id="unprocessable-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 4: 에러 코드 요약 -->
+            <div class="section">
+                <h2>📚 HTTP 에러 코드</h2>
+
+                <h3>클라이언트 에러 (4xx)</h3>
+                <div class="error-cards">
+                    <div class="error-card">
+                        <div class="error-card-code">400</div>
+                        <div class="error-card-desc">Bad Request<br>잘못된 요청</div>
+                    </div>
+                    <div class="error-card">
+                        <div class="error-card-code">404</div>
+                        <div class="error-card-desc">Not Found<br>리소스 없음</div>
+                    </div>
+                    <div class="error-card">
+                        <div class="error-card-code">422</div>
+                        <div class="error-card-desc">Unprocessable<br>검증 실패</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 20px;">에러 응답 형식</h3>
+                <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em;">
+                    <pre>{
+  "detail": "에러 메시지"
+}</pre>
+                </div>
+
+                <h3 style="margin-top: 20px;">일반적인 에러 원인</h3>
+                <div style="color: #555; font-size: 0.9em; line-height: 1.8;">
+                    • 필수 필드 누락<br>
+                    • 타입 불일치<br>
+                    • 범위 초과<br>
+                    • 리소스 없음<br>
+                    • 잘못된 데이터 형식
+                </div>
+            </div>
+
+            <!-- Section 5: 테스트 페이지 링크 -->
+            <div class="section">
+                <h2>🔗 다른 테스트 페이지</h2>
+
+                <div style="color: #555; line-height: 2.2; font-size: 0.95em;">
+                    <a href="/templates/index.html" style="color: #667eea; text-decoration: none;">
+                        📍 Path & Query Parameters
+                    </a><br>
+                    <a href="/templates/request_body.html" style="color: #667eea; text-decoration: none;">
+                        📦 Request Body & Pydantic
+                    </a><br>
+                    <a href="/templates/security.html" style="color: #667eea; text-decoration: none;">
+                        🔐 인증 & 보안
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function setInput(elementId, value) {
+            document.getElementById(elementId).value = value;
+        }
+
+        async function testBadRequest() {
+            const price = document.getElementById('bad-price').value;
+
+            if (!price) {
+                showError('bad-request-result', '가격을 입력하세요');
+                return;
+            }
+
+            const payload = { price: parseFloat(price) };
+            const url = `${API_BASE}/items/validate`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                showResult('bad-request-result', 'bad-request-content', 'bad-request-url',
+                    response.status, data, url);
+            } catch (error) {
+                showError('bad-request-result', error.message);
+            }
+        }
+
+        async function testNotFound() {
+            const itemId = document.getElementById('item-id-404').value;
+
+            if (!itemId) {
+                showError('not-found-result', 'Item ID를 입력하세요');
+                return;
+            }
+
+            const url = `${API_BASE}/items/${itemId}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                showResult('not-found-result', 'not-found-content', 'not-found-url',
+                    response.status, data, url);
+            } catch (error) {
+                showError('not-found-result', error.message);
+            }
+        }
+
+        async function testUnprocessable() {
+            const input = document.getElementById('validation-input').value;
+
+            if (!input) {
+                showError('unprocessable-result', '입력값을 입력하세요');
+                return;
+            }
+
+            const payload = { value: input };
+            const url = `${API_BASE}/items/validate-type`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                showResult('unprocessable-result', 'unprocessable-content', 'unprocessable-url',
+                    response.status, data, url);
+            } catch (error) {
+                showError('unprocessable-result', error.message);
+            }
+        }
+
+        function showResult(resultId, contentId, urlId, status, data, url) {
+            const resultDiv = document.getElementById(resultId);
+            const contentDiv = document.getElementById(contentId);
+            const urlDiv = document.getElementById(urlId);
+
+            resultDiv.classList.remove('error', 'success');
+            resultDiv.classList.add('show', status < 400 ? 'success' : 'error');
+
+            contentDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            const statusSpan = document.createElement('div');
+            statusSpan.className = `status-code status-${status}`;
+            statusSpan.textContent = `HTTP ${status}`;
+            contentDiv.appendChild(statusSpan);
+
+            urlDiv.innerHTML = `<strong>URL:</strong> ${url}`;
+        }
+
+        function showError(resultId, message) {
+            const resultDiv = document.getElementById(resultId);
+            const contentDiv = resultDiv.querySelector('.result-content');
+            resultDiv.classList.add('show', 'error');
+            contentDiv.innerHTML = `<strong>⚠️ 오류:</strong> ${message}`;
+        }
+    </script>
+</body>
+</html>

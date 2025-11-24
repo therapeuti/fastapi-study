@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI - 인증 & 보안 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sections {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .section h3 {
+            color: #555;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-family: 'Courier New', monospace;
+            transition: border-color 0.3s;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+            font-family: 'Courier New', monospace;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result-title {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result-content {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result-url {
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 10px;
+            word-break: break-all;
+            background: #e8eaf6;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .error {
+            color: #d32f2f;
+            border-left-color: #d32f2f;
+        }
+
+        .success {
+            color: #388e3c;
+            border-left-color: #388e3c;
+        }
+
+        .param-info {
+            font-size: 0.8em;
+            color: #999;
+            margin-top: 3px;
+        }
+
+        .status-code {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-200 {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .status-401 {
+            background: #ffccbc;
+            color: #d84315;
+        }
+
+        .status-403 {
+            background: #ffe0b2;
+            color: #e65100;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #0d47a1;
+            line-height: 1.6;
+        }
+
+        .preset-btn {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 3px 3px 3px 0;
+            background: #f0f4ff;
+            border: 1px solid #667eea;
+            color: #667eea;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .examples {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f4ff;
+            border-radius: 4px;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 FastAPI - 인증 & 보안 테스트</h1>
+
+        <div class="sections">
+            <!-- Section 1: Basic Authentication -->
+            <div class="section">
+                <h2>1️⃣ Basic Authentication</h2>
+                <p style="color: #666; margin-bottom: 15px;">username과 password로 인증</p>
+
+                <div class="info-box">
+                    💡 <strong>동작 원리:</strong> username과 password를 Base64로 인코딩하여 Authorization 헤더로 전송<br>
+                    예: <code>Authorization: Basic am9objpwYXNzd29yZA==</code>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="basic-username">Username:</label>
+                        <input type="text" id="basic-username" placeholder="예: john" value="john">
+                    </div>
+                    <div class="form-group">
+                        <label for="basic-password">Password:</label>
+                        <input type="password" id="basic-password" placeholder="예: secret123" value="secret123">
+                    </div>
+                </div>
+
+                <button onclick="testBasicAuth()">GET /auth/basic (Basic Auth 필수)</button>
+
+                <div class="examples">
+                    <strong>테스트 계정:</strong><br>
+                    <span class="preset-btn" onclick="setBasicAuth('john', 'secret123')">john / secret123</span>
+                    <span class="preset-btn" onclick="setBasicAuth('alice', 'password456')">alice / password456</span><br>
+                    <span class="preset-btn" onclick="setBasicAuth('wrong', 'wrong')">wrong / wrong (실패)</span>
+                </div>
+
+                <div class="result" id="basic-auth-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="basic-auth-content"></div>
+                    <div class="result-url" id="basic-auth-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 2: Bearer Token -->
+            <div class="section">
+                <h2>2️⃣ Bearer Token Authentication</h2>
+                <p style="color: #666; margin-bottom: 15px;">토큰으로 인증</p>
+
+                <div class="info-box">
+                    💡 <strong>동작 원리:</strong> 토큰을 Authorization 헤더로 전송<br>
+                    형식: <code>Authorization: Bearer your-token-here</code>
+                </div>
+
+                <div class="form-group">
+                    <label for="bearer-token">Token:</label>
+                    <input type="text" id="bearer-token" placeholder="예: eyJhbGciOiJIUzI1NiI..." value="token123">
+                    <div class="param-info">유효한 토큰으로 요청합니다</div>
+                </div>
+
+                <button onclick="testBearerToken()">GET /auth/bearer (Token 필수)</button>
+
+                <div class="examples">
+                    <strong>테스트 토큰:</strong><br>
+                    <span class="preset-btn" onclick="setBearerToken('token123')">token123 (유효)</span>
+                    <span class="preset-btn" onclick="setBearerToken('token456')">token456 (유효)</span><br>
+                    <span class="preset-btn" onclick="setBearerToken('invalid-token')">invalid-token (실패)</span>
+                </div>
+
+                <div class="result" id="bearer-token-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="bearer-token-content"></div>
+                    <div class="result-url" id="bearer-token-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 3: 인증 없이 접근 -->
+            <div class="section">
+                <h2>3️⃣ 인증 없이 접근 (실패)</h2>
+                <p style="color: #666; margin-bottom: 15px;">401 Unauthorized 테스트</p>
+
+                <div class="info-box">
+                    💡 <strong>결과:</strong> 인증 정보가 없으면 401 Unauthorized 에러가 반환됩니다
+                </div>
+
+                <button onclick="testNoAuth()">GET /auth/basic (인증 정보 없음)</button>
+
+                <div class="examples">
+                    <strong>예상 응답:</strong> 401 Unauthorized<br>
+                    <code style="background: white; padding: 4px 8px;">{"detail": "Not authenticated"}</code>
+                </div>
+
+                <div class="result" id="no-auth-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="no-auth-content"></div>
+                    <div class="result-url" id="no-auth-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 4: 커스텀 헤더 -->
+            <div class="section">
+                <h2>4️⃣ 커스텀 헤더 인증</h2>
+                <p style="color: #666; margin-bottom: 15px;">Custom Header로 인증</p>
+
+                <div class="info-box">
+                    💡 <strong>동작 원리:</strong> 커스텀 헤더 (예: X-API-Key)로 인증<br>
+                    형식: <code>X-API-Key: your-api-key-here</code>
+                </div>
+
+                <div class="form-group">
+                    <label for="api-key">API Key:</label>
+                    <input type="text" id="api-key" placeholder="예: sk-1234567890" value="sk-1234567890">
+                    <div class="param-info">커스텀 API 키</div>
+                </div>
+
+                <button onclick="testCustomHeader()">GET /auth/api-key (API Key 필수)</button>
+
+                <div class="examples">
+                    <strong>테스트 API 키:</strong><br>
+                    <span class="preset-btn" onclick="setAPIKey('sk-1234567890')">sk-1234567890</span>
+                    <span class="preset-btn" onclick="setAPIKey('sk-0987654321')">sk-0987654321</span><br>
+                    <span class="preset-btn" onclick="setAPIKey('invalid')">invalid (실패)</span>
+                </div>
+
+                <div class="result" id="custom-header-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="custom-header-content"></div>
+                    <div class="result-url" id="custom-header-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 5: 인증 가이드 -->
+            <div class="section">
+                <h2>📚 인증 방식 비교</h2>
+
+                <h3>Basic Authentication</h3>
+                <div class="code-block">
+                    헤더: Authorization: Basic base64(username:password)<br>
+                    장점: 간단함<br>
+                    단점: HTTPS 필수, 매번 자격증명 전송
+                </div>
+
+                <h3>Bearer Token</h3>
+                <div class="code-block">
+                    헤더: Authorization: Bearer &lt;token&gt;<br>
+                    장점: 안전함, 토큰 갱신 가능<br>
+                    단점: 토큰 관리 필요
+                </div>
+
+                <h3>Custom Header (API Key)</h3>
+                <div class="code-block">
+                    헤더: X-API-Key: &lt;api-key&gt;<br>
+                    장점: 유연함<br>
+                    단점: 표준이 아님
+                </div>
+
+                <h3 style="margin-top: 20px;">보안 주의사항</h3>
+                <div style="color: #555; font-size: 0.9em; line-height: 1.8; background: #fff3e0; padding: 12px; border-radius: 4px; border-left: 4px solid #ff9800;">
+                    ⚠️ 항상 HTTPS 사용<br>
+                    ⚠️ 토큰/키를 안전하게 저장<br>
+                    ⚠️ 환경 변수로 민감한 정보 관리<br>
+                    ⚠️ 정기적으로 토큰 갱신<br>
+                    ⚠️ 토큰 만료 시간 설정
+                </div>
+            </div>
+
+            <!-- Section 6: 테스트 페이지 링크 -->
+            <div class="section">
+                <h2>🔗 다른 테스트 페이지</h2>
+
+                <div style="color: #555; line-height: 2.2; font-size: 0.95em;">
+                    <a href="/templates/index.html" style="color: #667eea; text-decoration: none;">
+                        📍 Path & Query Parameters
+                    </a><br>
+                    <a href="/templates/request_body.html" style="color: #667eea; text-decoration: none;">
+                        📦 Request Body & Pydantic
+                    </a><br>
+                    <a href="/templates/error_handling.html" style="color: #667eea; text-decoration: none;">
+                        ⚠️ Error Handling
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function setBasicAuth(username, password) {
+            document.getElementById('basic-username').value = username;
+            document.getElementById('basic-password').value = password;
+        }
+
+        function setBearerToken(token) {
+            document.getElementById('bearer-token').value = token;
+        }
+
+        function setAPIKey(key) {
+            document.getElementById('api-key').value = key;
+        }
+
+        function btoa_utf8(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+
+        async function testBasicAuth() {
+            const username = document.getElementById('basic-username').value;
+            const password = document.getElementById('basic-password').value;
+
+            if (!username || !password) {
+                showError('basic-auth-result', 'username과 password를 입력하세요');
+                return;
+            }
+
+            const credentials = btoa_utf8(`${username}:${password}`);
+            const url = `${API_BASE}/auth/basic`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Basic ${credentials}`
+                    }
+                });
+
+                const data = await response.json();
+                showResult('basic-auth-result', 'basic-auth-content', 'basic-auth-url',
+                    response.status, data, url, `Authorization: Basic ${credentials}`);
+            } catch (error) {
+                showError('basic-auth-result', error.message);
+            }
+        }
+
+        async function testBearerToken() {
+            const token = document.getElementById('bearer-token').value;
+
+            if (!token) {
+                showError('bearer-token-result', 'Token을 입력하세요');
+                return;
+            }
+
+            const url = `${API_BASE}/auth/bearer`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                showResult('bearer-token-result', 'bearer-token-content', 'bearer-token-url',
+                    response.status, data, url, `Authorization: Bearer ${token}`);
+            } catch (error) {
+                showError('bearer-token-result', error.message);
+            }
+        }
+
+        async function testNoAuth() {
+            const url = `${API_BASE}/auth/basic`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                showResult('no-auth-result', 'no-auth-content', 'no-auth-url',
+                    response.status, data, url, 'Authorization: (없음)');
+            } catch (error) {
+                showError('no-auth-result', error.message);
+            }
+        }
+
+        async function testCustomHeader() {
+            const apiKey = document.getElementById('api-key').value;
+
+            if (!apiKey) {
+                showError('custom-header-result', 'API Key를 입력하세요');
+                return;
+            }
+
+            const url = `${API_BASE}/auth/api-key`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                const data = await response.json();
+                showResult('custom-header-result', 'custom-header-content', 'custom-header-url',
+                    response.status, data, url, `X-API-Key: ${apiKey}`);
+            } catch (error) {
+                showError('custom-header-result', error.message);
+            }
+        }
+
+        function showResult(resultId, contentId, urlId, status, data, url, header) {
+            const resultDiv = document.getElementById(resultId);
+            const contentDiv = document.getElementById(contentId);
+            const urlDiv = document.getElementById(urlId);
+
+            resultDiv.classList.remove('error', 'success');
+            resultDiv.classList.add('show', status < 400 ? 'success' : 'error');
+
+            contentDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+            const statusSpan = document.createElement('div');
+            statusSpan.className = `status-code status-${status}`;
+            statusSpan.textContent = `HTTP ${status}`;
+            contentDiv.appendChild(statusSpan);
+
+            urlDiv.innerHTML = `<strong>URL:</strong> ${url}<br><strong>Header:</strong> ${header}`;
+        }
+
+        function showError(resultId, message) {
+            const resultDiv = document.getElementById(resultId);
+            const contentDiv = resultDiv.querySelector('.result-content');
+            resultDiv.classList.add('show', 'error');
+            contentDiv.innerHTML = `<strong>⚠️ 오류:</strong> ${message}`;
+        }
+    </script>
+</body>
+</html>

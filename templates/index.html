@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI - Path & Query Parameters 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .sections {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .section h3 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result-title {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result-content {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result-url {
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 10px;
+            word-break: break-all;
+            background: #e8eaf6;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .error {
+            color: #d32f2f;
+            border-left-color: #d32f2f;
+        }
+
+        .success {
+            color: #388e3c;
+            border-left-color: #388e3c;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .inline-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .inline-buttons button {
+            margin: 0;
+        }
+
+        .param-info {
+            font-size: 0.8em;
+            color: #999;
+            margin-top: 3px;
+        }
+
+        .examples {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f0f4ff;
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+
+        .examples strong {
+            color: #667eea;
+        }
+
+        .test-link {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .test-link:hover {
+            color: #764ba2;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-code {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-200 {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .status-422 {
+            background: #ffccbc;
+            color: #d84315;
+        }
+
+        .status-404 {
+            background: #ffe0b2;
+            color: #e65100;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 FastAPI Path & Query Parameters 테스트</h1>
+
+        <div class="sections">
+            <!-- Section 1: Path 파라미터 기본 -->
+            <div class="section">
+                <h2>1️⃣ Path 파라미터 - 기본</h2>
+                <p style="color: #666; margin-bottom: 15px;">사용자 ID로 장바구니 조회</p>
+
+                <div class="form-group">
+                    <label for="cart-user-id">User ID:</label>
+                    <input type="text" id="cart-user-id" placeholder="예: john123" value="user1">
+                    <div class="param-info">문자열 타입</div>
+                </div>
+
+                <button onclick="testCart()">Test /cart/{user_id}</button>
+
+                <div class="examples">
+                    <strong>테스트:</strong><br>
+                    <span class="test-link" onclick="setInputAndTest('cart-user-id', 'john123', testCart)">john123</span> |
+                    <span class="test-link" onclick="setInputAndTest('cart-user-id', 'alice456', testCart)">alice456</span>
+                </div>
+
+                <div class="result" id="cart-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="cart-content"></div>
+                    <div class="result-url" id="cart-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 2: Path 파라미터 검증 -->
+            <div class="section">
+                <h2>2️⃣ Path 파라미터 - 검증</h2>
+                <p style="color: #666; margin-bottom: 15px;">상품 ID 조회 (1~1000 범위)</p>
+
+                <div class="form-group">
+                    <label for="item-id">Item ID:</label>
+                    <input type="number" id="item-id" placeholder="1 ~ 1000" value="42" min="1" max="1000">
+                    <div class="param-info">정수 타입, 범위: 1 ~ 1000</div>
+                </div>
+
+                <button onclick="testItem()">Test /items/{item_id}</button>
+
+                <div class="examples">
+                    <strong>테스트:</strong><br>
+                    <span class="test-link" onclick="setInputAndTest('item-id', '1', testItem)">1</span> |
+                    <span class="test-link" onclick="setInputAndTest('item-id', '500', testItem)">500</span> |
+                    <span class="test-link" onclick="setInputAndTest('item-id', '2000', testItem)">2000 (범위 초과)</span>
+                </div>
+
+                <div class="result" id="item-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="item-content"></div>
+                    <div class="result-url" id="item-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 3: Query 파라미터 기본 -->
+            <div class="section">
+                <h2>3️⃣ Query 파라미터 - 기본</h2>
+                <p style="color: #666; margin-bottom: 15px;">두 수의 합 계산</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="item-a">Item A:</label>
+                        <input type="number" id="item-a" value="10">
+                        <div class="param-info">기본값: 1</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-b">Item B:</label>
+                        <input type="number" id="item-b" value="20">
+                        <div class="param-info">기본값: 2</div>
+                    </div>
+                </div>
+
+                <button onclick="testItems()">Test /items?item_a=...&item_b=...</button>
+
+                <div class="examples">
+                    <strong>테스트:</strong><br>
+                    <span class="test-link" onclick="setInputsAndTest('item-a', '5', 'item-b', '15', testItems)">5 + 15</span> |
+                    <span class="test-link" onclick="setInputsAndTest('item-a', '100', 'item-b', '200', testItems)">100 + 200</span>
+                </div>
+
+                <div class="result" id="items-result">
+                    <div class="result-title">응답:</div>
+                    <div class="result-content" id="items-content"></div>
+                    <div class="result-url" id="items-url"></div>
+                </div>
+            </div>
+
+            <!-- Section 4: 문서 및 도움말 -->
+            <div class="section">
+                <h2>📚 유용한 링크</h2>
+
+                <h3>OpenAPI 문서</h3>
+                <div class="inline-buttons">
+                    <button onclick="openInNewTab('/docs')">Swagger UI</button>
+                    <button onclick="openInNewTab('/redoc')">ReDoc</button>
+                </div>
+
+                <h3 style="margin-top: 20px;">학습 내용</h3>
+                <div style="margin-top: 10px; color: #555; font-size: 0.95em; line-height: 1.8;">
+                    <strong>✅ Path 파라미터:</strong><br>
+                    • URL 경로의 일부로 전달<br>
+                    • 예: /items/{item_id}<br>
+                    • 보통 리소스 ID 전달<br><br>
+
+                    <strong>✅ Query 파라미터:</strong><br>
+                    • URL 쿼리 문자열로 전달<br>
+                    • 예: ?skip=0&limit=10<br>
+                    • 보통 필터, 정렬, 페이지네이션<br><br>
+
+                    <strong>✅ 기본 규칙:</strong><br>
+                    • 기본값 없는 파라미터는 필수<br>
+                    • 기본값 있는 파라미터는 선택<br>
+                    • 함수 정의: 필수 → 선택 순서
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function openInNewTab(path) {
+            window.open(API_BASE + path, '_blank');
+        }
+
+        function setInputAndTest(inputId, value, testFunc) {
+            document.getElementById(inputId).value = value;
+            testFunc();
+        }
+
+        function setInputsAndTest(id1, val1, id2, val2, testFunc) {
+            document.getElementById(id1).value = val1;
+            document.getElementById(id2).value = val2;
+            testFunc();
+        }
+
+        async function testCart() {
+            const userId = document.getElementById('cart-user-id').value;
+            if (!userId) {
+                showError('cart-result', 'User ID를 입력하세요');
+                return;
+            }
+
+            const url = `${API_BASE}/cart/${encodeURIComponent(userId)}`;
+            await makeRequest(url, 'cart-result', 'cart-content', 'cart-url');
+        }
+
+        async function testItem() {
+            const itemId = document.getElementById('item-id').value;
+            if (!itemId) {
+                showError('item-result', 'Item ID를 입력하세요');
+                return;
+            }
+
+            const url = `${API_BASE}/items/${itemId}`;
+            await makeRequest(url, 'item-result', 'item-content', 'item-url');
+        }
+
+        async function testItems() {
+            const itemA = document.getElementById('item-a').value || '1';
+            const itemB = document.getElementById('item-b').value || '2';
+
+            const url = `${API_BASE}/items?item_a=${itemA}&item_b=${itemB}`;
+            await makeRequest(url, 'items-result', 'items-content', 'items-url');
+        }
+
+        async function makeRequest(url, resultId, contentId, urlId) {
+            const resultDiv = document.getElementById(resultId);
+            const contentDiv = document.getElementById(contentId);
+            const urlDiv = document.getElementById(urlId);
+
+            try {
+                resultDiv.classList.remove('show', 'error', 'success');
+                contentDiv.innerHTML = '<div class="loading"><div class="spinner"></div> 요청 중...</div>';
+                resultDiv.classList.add('show');
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                resultDiv.classList.add(response.ok ? 'success' : 'error');
+                contentDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+                const statusSpan = document.createElement('div');
+                statusSpan.className = `status-code status-${response.status}`;
+                statusSpan.textContent = `HTTP ${response.status}`;
+                contentDiv.appendChild(statusSpan);
+
+                urlDiv.innerHTML = `<strong>URL:</strong> ${url}`;
+            } catch (error) {
+                resultDiv.classList.add('error', 'show');
+                contentDiv.innerHTML = `<strong>에러:</strong> ${error.message}`;
+                urlDiv.innerHTML = `<strong>URL:</strong> ${url}`;
+            }
+        }
+
+        function showError(resultId, message) {
+            const resultDiv = document.getElementById(resultId);
+            const contentDiv = resultDiv.querySelector('.result-content');
+            resultDiv.classList.add('show', 'error');
+            contentDiv.innerHTML = `<strong>⚠️ 오류:</strong> ${message}`;
+        }
+
+        // 초기 테스트
+        window.addEventListener('load', () => {
+            console.log('FastAPI 테스트 페이지 로드됨');
+            console.log('API Base URL:', API_BASE);
+        });
+    </script>
+</body>
+</html>
