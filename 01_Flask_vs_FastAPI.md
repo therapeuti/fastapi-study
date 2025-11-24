@@ -867,6 +867,324 @@ async def list_items(request: Request):
 
 ---
 
+### 2.8 정적 HTML + REST API (현대적 접근)
+
+Jinja2 템플릿 없이 **정적 HTML 파일과 REST API를 분리**하는 방식입니다.
+이것이 **현대 웹 개발의 표준 방식**입니다.
+
+#### 프로젝트 구조
+
+```
+project/
+├── main.py
+├── requirements.txt
+├── static/
+│   ├── index.html       # 정적 HTML
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── script.js
+│   └── images/
+└── .gitignore
+```
+
+**특징:**
+- HTML: **정적 파일** (변경되지 않는 파일)
+- JavaScript: **REST API 호출** (데이터 동적 로드)
+- 프론트엔드와 백엔드 **완전 분리**
+
+---
+
+#### FastAPI 구현
+
+**main.py:**
+```python
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import uvicorn
+
+app = FastAPI()
+
+# ✅ 정적 파일 (CSS, JS, 이미지) 제공
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# REST API 엔드포인트
+@app.get("/api/items/")
+async def get_items():
+    return {
+        "items": [
+            {"id": 1, "name": "Laptop", "price": 1000},
+            {"id": 2, "name": "Phone", "price": 500}
+        ]
+    }
+
+@app.get("/api/items/{item_id}")
+async def get_item(item_id: int):
+    return {"id": item_id, "name": "Item", "price": 100}
+
+@app.post("/api/items/")
+async def create_item(name: str, price: float):
+    return {"id": 3, "name": name, "price": price}
+
+# ✅ 루트에서 index.html 제공
+@app.get("/")
+async def root():
+    return FileResponse("static/index.html")
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", reload=True, host="0.0.0.0", port=8000)
+```
+
+---
+
+#### static/index.html
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상품 목록 - REST API</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>상품 목록</h1>
+        <button onclick="loadItems()">상품 조회</button>
+
+        <div id="items" class="items-grid"></div>
+    </div>
+
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
+```
+
+---
+
+#### static/css/style.css
+
+```css
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: white;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+button {
+    padding: 12px 24px;
+    background: white;
+    color: #667eea;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.item {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: transform 0.2s;
+}
+
+.item:hover {
+    transform: translateY(-4px);
+}
+
+.item h2 {
+    margin-bottom: 10px;
+    color: #667eea;
+    font-size: 1.2em;
+}
+
+.item p {
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.item .price {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #28a745;
+    margin-top: 10px;
+}
+
+.item-id {
+    font-size: 0.9em;
+    color: #999;
+}
+```
+
+---
+
+#### static/js/script.js
+
+```javascript
+const API_BASE = "http://localhost:8000/api";
+
+async function loadItems() {
+    try {
+        const response = await fetch(`${API_BASE}/items/`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        displayItems(data.items);
+    } catch (error) {
+        console.error("Error:", error);
+        alert("상품 조회 실패: " + error.message);
+    }
+}
+
+function displayItems(items) {
+    const container = document.getElementById("items");
+
+    if (items.length === 0) {
+        container.innerHTML = "<p>상품이 없습니다.</p>";
+        return;
+    }
+
+    container.innerHTML = items.map(item => `
+        <div class="item">
+            <span class="item-id">ID: ${item.id}</span>
+            <h2>${item.name}</h2>
+            <p class="price">$${item.price.toLocaleString()}</p>
+            <button onclick="getItemDetail(${item.id})">
+                상세보기
+            </button>
+        </div>
+    `).join("");
+}
+
+async function getItemDetail(itemId) {
+    try {
+        const response = await fetch(`${API_BASE}/items/${itemId}`);
+        const data = await response.json();
+        alert(`
+${data.name}
+
+가격: $${data.price.toLocaleString()}
+ID: ${data.id}
+        `);
+    } catch (error) {
+        console.error("Error:", error);
+        alert("상세정보 조회 실패");
+    }
+}
+
+// 페이지 로드 시 자동 실행
+window.addEventListener("load", loadItems);
+```
+
+---
+
+#### 실행 흐름
+
+```
+1️⃣ 사용자가 http://localhost:8000/ 방문
+   ↓
+2️⃣ FastAPI가 static/index.html 제공 (FileResponse)
+   ↓
+3️⃣ 브라우저가 HTML, CSS, JS 로드
+   ↓
+4️⃣ JavaScript가 window.load 이벤트에서 loadItems() 호출
+   ↓
+5️⃣ fetch()가 /api/items/ REST API 호출
+   ↓
+6️⃣ FastAPI가 JSON 응답 반환
+   ↓
+7️⃣ JavaScript가 displayItems()로 HTML에 데이터 렌더링
+```
+
+---
+
+#### Flask와 FastAPI 비교 (정적 HTML)
+
+| 측면 | Flask | FastAPI |
+|------|-------|---------|
+| **HTML 제공** | `render_template()` | `FileResponse()` |
+| **정적 파일** | `static/` 자동 | `app.mount()` 필수 |
+| **API** | JSON 직접 반환 | JSON 직접 반환 |
+| **프론트엔드** | 서버 템플릿 | 정적 + JavaScript |
+| **데이터 전달** | 템플릿 변수 | REST API (JSON) |
+| **캐싱** | 어려움 | 용이 (정적 파일) |
+| **확장성** | 낮음 | 높음 (프론트/백 분리) |
+
+---
+
+#### 장점 분석
+
+**정적 HTML + REST API 방식의 장점:**
+
+1. **프론트/백 완전 분리**
+   - 개발 팀 독립 운영 가능
+   - 다양한 프론트엔드 지원 (웹, 모바일 등)
+
+2. **캐싱 최적화**
+   - 정적 HTML/CSS/JS는 CDN 캐싱 가능
+   - 대역폭 절감
+
+3. **확장성**
+   - 새로운 클라이언트 추가 용이
+   - REST API는 표준 인터페이스
+
+4. **배포 유연성**
+   - 정적 파일은 별도 서버/CDN에서 제공 가능
+   - API 서버만 따로 운영 가능
+
+5. **개발 효율성**
+   - JavaScript 프레임워크 (React, Vue 등) 사용 가능
+   - 최신 웹 개발 스택 활용
+
+---
+
+#### 권장 사용 시나리오
+
+| 방식 | 추천 | 이유 |
+|------|------|------|
+| **Jinja2 템플릿** | 간단한 웹사이트 | 빠른 프로토타입 |
+| **정적 HTML + REST API** | 모던 웹 애플리케이션 | 확장성, 유연성 |
+| **프론트엔드 프레임워크** | 복잡한 SPA | React, Vue 등 활용 |
+
+---
+
 ## 3. 비동기 처리
 
 ### 3.1 Flask의 비동기
