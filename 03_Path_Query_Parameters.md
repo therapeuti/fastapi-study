@@ -721,6 +721,306 @@ def read_items(skip: int = 0, limit: int = 10):
 
 ---
 
+## 실습 결과 (실제 테스트)
+
+### 범위 검증 테스트
+
+**엔드포인트:**
+```python
+@app.get("/reg")
+def read_items(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100)
+):
+    return {"skip": skip, "limit": limit}
+```
+
+**테스트 1: skip=1, limit=1**
+```bash
+curl "http://localhost:8000/reg?skip=1&limit=1"
+```
+**응답:**
+```json
+{"skip": 1, "limit": 1}
+```
+
+**테스트 2: skip만 지정 (limit은 기본값)**
+```bash
+curl "http://localhost:8000/reg?skip=1"
+```
+**응답:**
+```json
+{"skip": 1, "limit": 10}
+```
+
+**테스트 3: 파라미터 없음 (모두 기본값)**
+```bash
+curl "http://localhost:8000/reg"
+```
+**응답:**
+```json
+{"skip": 0, "limit": 10}
+```
+
+**테스트 4: skip=10**
+```bash
+curl "http://localhost:8000/reg?skip=10"
+```
+**응답:**
+```json
+{"skip": 10, "limit": 10}
+```
+
+**테스트 5: limit이 범위 초과 (1004 > 100)**
+```bash
+curl "http://localhost:8000/reg?skip=1&limit=1004"
+```
+**응답 (422 Unprocessable Entity):**
+```json
+{
+  "detail": [
+    {
+      "type": "less_than_equal",
+      "loc": ["query", "limit"],
+      "msg": "Input should be less than or equal to 100",
+      "input": "1004",
+      "ctx": {"le": 100}
+    }
+  ]
+}
+```
+
+**분석:**
+- `limit` 파라미터가 최대값(100)을 초과하면 검증 오류 발생
+- FastAPI가 자동으로 상세한 에러 메시지 제공
+
+---
+
+### 리스트 Query 파라미터 테스트
+
+**엔드포인트:**
+```python
+from typing import List
+
+@app.get('/list')
+def get_list(q: List[str] = Query([])):
+    return {'q': q}
+```
+
+**테스트 1: 파라미터 없음 (빈 리스트)**
+```bash
+curl "http://localhost:8000/list"
+```
+**응답:**
+```json
+{"q": []}
+```
+
+**테스트 2: 단일 값**
+```bash
+curl "http://localhost:8000/list?q=dgh"
+```
+**응답:**
+```json
+{"q": ["dgh"]}
+```
+
+**테스트 3: 쉼표로 구분된 값 (1개 항목으로 처리됨)**
+```bash
+curl "http://localhost:8000/list?q=dgh,dg,h,h,h,e"
+```
+**응답:**
+```json
+{"q": ["dgh,dg,h,h,h,e"]}
+```
+**주의:** 쉼표는 단순 문자열로 취급되며, 자동으로 분리되지 않습니다.
+
+**테스트 4: 같은 파라미터 여러 번 전달 (올바른 방법)**
+```bash
+curl "http://localhost:8000/list?q=dgh&q=dg,h,h,h,e"
+```
+**응답:**
+```json
+{"q": ["dgh", "dg,h,h,h,e"]}
+```
+
+**분석:**
+- 리스트 파라미터는 **같은 파라미터를 여러 번 전달**해야 함
+- 쉼표로 구분하면 1개의 문자열로 처리됨
+- 각 `q=값` 형태로 전달하면 리스트에 추가됨
+
+---
+
+### 필수 파라미터와 선택 파라미터 비교
+
+#### 선택적 Query 파라미터 (기본값 있음)
+
+**엔드포인트:**
+```python
+from typing import Optional
+
+@app.get('/selected-items')
+def read_items(q: Optional[str] = None):
+    return {'q': q}
+```
+
+**테스트 1: 파라미터 제공**
+```bash
+curl "http://localhost:8000/selected-items?q=hello"
+```
+**응답:**
+```json
+{"q": "hello"}
+```
+
+**테스트 2: 파라미터 생략 (기본값 None)**
+```bash
+curl "http://localhost:8000/selected-items"
+```
+**응답:**
+```json
+{"q": null}
+```
+
+---
+
+#### Python 3.10+ 문법 (str | None)
+
+**엔드포인트:**
+```python
+@app.get('/optional-items')
+def read_items2(q: str | None = None):
+    return {'q': q}
+```
+
+**테스트:**
+```bash
+curl "http://localhost:8000/optional-items?q=test"
+응답: {"q": "test"}
+
+curl "http://localhost:8000/optional-items"
+응답: {"q": null}
+```
+
+**분석:**
+- `Optional[str]` = `str | None` (동일한 의미)
+- Python 3.10 이후는 `str | None` 문법을 권장
+
+---
+
+### 필수 Query 파라미터 테스트 (Query(...))
+
+**엔드포인트:**
+```python
+from typing import List
+from fastapi import Query
+
+@app.get('/integer-list')
+def int_list(q: List[int] = Query(...)):
+    return {'result': q}
+```
+
+**Query(...) 의미:**
+- `...` (Ellipsis) = **필수 파라미터**
+- 파라미터가 없으면 422 Unprocessable Entity 에러 발생
+
+**테스트 1: 올바른 요청 (파라미터 제공)**
+```bash
+curl "http://localhost:8000/integer-list?q=1&q=2&q=3"
+```
+**응답:**
+```json
+{"result": [1, 2, 3]}
+```
+
+**테스트 2: 필수 파라미터 누락 (422 에러)**
+```bash
+curl "http://localhost:8000/integer-list"
+```
+**응답 (422 Unprocessable Entity):**
+```json
+{
+  "detail": [
+    {
+      "type": "missing",
+      "loc": ["query", "q"],
+      "msg": "Field required"
+    }
+  ]
+}
+```
+
+**분석:**
+- `Query(...)` = 필수 파라미터 (파라미터 없으면 에러)
+- `Query(None)` = 선택적 (None 기본값)
+- `Query(기본값)` = 선택적 (지정한 기본값)
+
+---
+
+### 문자열 길이 검증
+
+**엔드포인트:**
+```python
+@app.get('/query')
+def query(q: str = Query(..., min_length=3, max_length=10)):
+    return {'q': q}
+```
+
+**특징:**
+- `...` = 필수 파라미터
+- `min_length=3` = 최소 3글자
+- `max_length=10` = 최대 10글자
+
+**테스트 1: 올바른 길이 (5글자)**
+```bash
+curl "http://localhost:8000/query?q=hello"
+```
+**응답:**
+```json
+{"q": "hello"}
+```
+
+**테스트 2: 길이 초과 (15글자 > 최대 10글자)**
+```bash
+curl "http://localhost:8000/query?q=verylongstring"
+```
+**응답 (422 에러):**
+```json
+{
+  "detail": [
+    {
+      "type": "string_too_long",
+      "loc": ["query", "q"],
+      "msg": "String should have at most 10 characters",
+      "input": "verylongstring",
+      "ctx": {"max_length": 10}
+    }
+  ]
+}
+```
+
+**분석:**
+- 필수 파라미터 + 길이 검증 동시 적용
+- FastAPI가 자동으로 입력값 검증
+
+---
+
+## 필수 vs 선택 파라미터 정리
+
+| 표현식 | 필수 여부 | 기본값 | 설명 |
+|--------|---------|-------|------|
+| `q: str` | 필수 | 없음 | 필수 파라미터 |
+| `q: str = None` | ❌ 타입 오류 | - | Optional 필요 |
+| `q: Optional[str] = None` | 선택 | None | 선택적 (None) |
+| `q: str \| None = None` | 선택 | None | 선택적 (최신 문법) |
+| `q: str = Query(...)` | **필수** | 없음 | 필수 (Query 명시) |
+| `q: str = Query(None)` | 선택 | None | 선택적 (Query로) |
+| `q: str = Query("default")` | 선택 | "default" | 선택적 (기본값) |
+| `q: List[str] = Query(...)` | **필수** | 없음 | 필수 리스트 |
+| `q: List[str] = Query([])` | 선택 | [] | 선택적 리스트 |
+
+---
+
 ## 요약
 
 ### Path 파라미터
