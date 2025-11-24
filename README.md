@@ -105,12 +105,48 @@ async def read_root():
 ```
 
 ### 3. 서버 실행
+
+#### 📌 방법 1: if __name__ == "__main__" 사용 (권장)
+```python
+# main.py
+from fastapi import FastAPI
+import uvicorn
+
+app = FastAPI()
+
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
+
+# ✅ 이 부분이 중요!
+if __name__ == "__main__":
+    uvicorn.run("main:app", reload=True, host="0.0.0.0", port=8000)
+```
+
+실행:
+```bash
+python main.py
+```
+
+**파라미터 설명:**
+- `"main:app"`: 모듈명:앱 객체
+- `reload=True`: 파일 변경 시 자동 재시작 (개발 모드)
+- `host="0.0.0.0"`: 모든 IP에서 접근 가능
+- `port=8000`: 포트 번호
+
+#### 📌 방법 2: 명령행에서 직접 실행
 ```bash
 # 자동 리로드 모드
 fastapi dev main.py
 
 # 또는
 uvicorn main:app --reload
+
+# 포트 변경
+uvicorn main:app --reload --port 8080
+
+# 프로덕션 (리로드 없음)
+uvicorn main:app
 ```
 
 ### 4. 문서 확인
@@ -122,25 +158,30 @@ uvicorn main:app --reload
 
 ## 📋 학습 진행 체계
 
-### **1주차: 기초 (1-3장)**
-- [ ] Flask와 FastAPI 비교 읽기
-- [ ] 환경 설정 완료
-- [ ] 첫 API 작성 및 실행
-- [ ] Path/Query 파라미터 실습
+### **1일차: 기초 (1-3장)**
+- [x] Flask와 FastAPI 비교 읽기
+- [x] 환경 설정 완료
+- [x] 첫 API 작성 및 실행
+- [x] Path/Query 파라미터 실습
+- [x] 서버 실행 방법 (uvicorn, if __name__)
 
-### **2주차: 데이터 처리 (4-5장)**
-- [ ] Pydantic 모델 학습
-- [ ] Request Body 처리
-- [ ] Response Model 구현
-- [ ] 간단한 CRUD API 작성
+### **2일차: 데이터 처리 (4-5장)**
+- [x] Pydantic 모델 학습
+- [x] Request Body 처리
+- [x] Response Model 구현
+- [x] 간단한 CRUD API 작성
+- [x] 모델 기본값 설정
+- [x] 선택적/필수 필드 구분
 
-### **3주차: 비즈니스 로직 (6-7장)**
+### **3일차: 비즈니스 로직 (6-7장)**
+- [x] 글로벌 변수와 global 키워드
+- [x] 함수 내에서 변수 수정하기
 - [ ] 에러 핸들링 이해
 - [ ] 의존성 주입 활용
 - [ ] 인증 로직 구현
 - [ ] 복잡한 API 설계
 
-### **4주차: 고급 주제 (8-9장)**
+### **4일차: 고급 주제 (8-9장)**
 - [ ] 미들웨어 구현
 - [ ] CORS 설정
 - [ ] OAuth 2.0 JWT 인증
@@ -224,19 +265,89 @@ pip install pytest httpx
 
 ---
 
-## 📝 예제 프로젝트 아이디어
+## 📝 예제 프로젝트 및 학습 코드
 
-### 초급
-- 📝 TODO API (CRUD)
-- 🧮 계산기 API
-- 📚 도서 목록 API
+### 📂 프로젝트 구조
 
-### 중급
+```
+fastapi-study/
+├── README.md                          # 이 파일
+├── 01_Flask_vs_FastAPI.md            # Flask vs FastAPI 비교
+├── 02_환경설정_및_첫API.md
+├── 03_Path_Query_Parameters.md        # Path/Query 파라미터 (실전 테스트 결과 포함)
+├── 04_Request_Body_Pydantic.md
+├── 05_Response_Model_및_상태코드.md
+├── 06_에러핸들링.md
+├── 07_의존성주입.md
+├── 08_미들웨어_CORS.md
+├── 09_인증_보안.md
+│
+├── 1.helloworld.py                   # 첫 번째 예제
+├── 2_path_query_param.py             # Path & Query 파라미터 예제
+├── todolist.py                        # TODO API 프로젝트 (CRUD + 동적 ID)
+│
+├── static/
+│   ├── todolist.html                 # TODO 프론트엔드
+│   └── js/
+│       └── todolist.js               # TODO JavaScript (async/await, fetch)
+│
+└── templates/                         # (필요시) Jinja2 템플릿
+    ├── index.html
+    ├── request_body.html
+    ├── error_handling.html
+    └── security.html
+```
+
+### 🎯 실습 프로젝트
+
+#### **초급 - TODO List API**
+현재 학습 중인 프로젝트입니다.
+
+**구현 기능:**
+- [x] GET `/api/todo/` - 모든 TODO 조회
+- [x] POST `/api/todo/` - 새 TODO 추가 (자동 ID 생성)
+- [ ] PUT `/api/todo/{id}` - TODO 상태 수정
+- [ ] DELETE `/api/todo/{id}` - TODO 삭제
+- [x] 프론트엔드 (HTML + JavaScript)
+
+**핵심 학습 내용:**
+- Pydantic 모델 (기본값, 선택적 필드)
+- 전역 변수 관리 (`global` 키워드)
+- 비동기 JavaScript (`async/await`, `fetch`)
+- REST API 설계
+
+```python
+# todolist.py 예제
+from fastapi import FastAPI
+from pydantic import BaseModel
+import uvicorn
+
+class Todo(BaseModel):
+    todo: str
+    status: bool = False
+
+todolist = [{'id': 1, 'todo': '투두리스트', 'status': False}]
+todo_id = 2
+
+@app.post('/api/todo/')
+def add_todolist(todo: Todo):
+    global todo_id  # 글로벌 변수 수정
+    todo_dict = todo.dict()
+    todo_dict['id'] = todo_id
+    todo_id += 1
+    todolist.append(todo_dict)
+    return {'todolist': todolist}
+
+if __name__ == "__main__":
+    uvicorn.run("todolist:app", reload=True)
+```
+
+#### **중급 프로젝트 아이디어**
 - 👥 사용자 관리 API
 - 📱 블로그 API (게시글, 댓글)
 - 🛒 쇼핑몰 API (상품, 주문)
 
-### 고급
+#### **고급 프로젝트 아이디어**
 - 🔐 JWT 인증 기반 API
 - 📊 실시간 알림 시스템 (WebSocket)
 - 📁 파일 업로드/다운로드 API
@@ -292,6 +403,56 @@ def get_item(item_id: int):
     return items_db[item_id]
 ```
 
+### 4. 글로벌 변수를 함수 내에서 수정할 때
+```python
+# ❌ 나쁜 예 (UnboundLocalError 발생)
+counter = 0
+
+@app.post("/increment")
+def increment():
+    counter += 1  # 에러!
+    return counter
+
+# ✅ 좋은 예
+counter = 0
+
+@app.post("/increment")
+def increment():
+    global counter  # 글로벌 선언 필수
+    counter += 1
+    return counter
+```
+
+### 5. Pydantic 모델에서 JSON 데이터를 딕셔너리로 변환하기
+```python
+# ❌ 나쁜 예
+@app.post("/items")
+def create_item(item: Item):
+    todolist.append(item)  # Item 객체 직접 추가
+
+# ✅ 좋은 예
+@app.post("/items")
+def create_item(item: Item):
+    item_dict = item.dict()  # 딕셔너리로 변환
+    todolist.append(item_dict)
+    return {"list": todolist}
+```
+
+### 6. JavaScript에서 비동기 함수 제어 흐름
+```javascript
+// ❌ 나쁜 예 (순서 보장 안 됨)
+document.addEventListener('click', async (e) => {
+    updateStatus(id);  // 완료 대기 없음
+    get_todolist()     // updateStatus가 끝나지 않았는데 바로 실행
+})
+
+// ✅ 좋은 예
+document.addEventListener('click', async (e) => {
+    await updateStatus(id);  // 완료 대기
+    await get_todolist()     // updateStatus 완료 후 실행
+})
+```
+
 ---
 
 ## 🎓 학습 완료 후 다음 단계
@@ -315,11 +476,76 @@ def get_item(item_id: int):
 ### Q: 동기 함수와 비동기 함수 중 어떤 것을 써야 하나요?
 **A:** I/O 작업(DB, API 호출)이 있으면 비동기, CPU 작업만 있으면 동기를 사용하세요.
 
+**상세 가이드:**
+```python
+# ✅ 동기 함수 (메모리 연산만 할 때)
+@app.get("/calculate")
+def calculate(a: int, b: int):
+    return {"result": a + b}  # CPU만 사용
+
+@app.get("/items")
+def get_items():
+    return {"items": items_list}  # 메모리에서 바로 반환
+
+# ✅ 비동기 함수 (I/O 작업이 있을 때)
+@app.get("/users")
+async def get_users():
+    # 데이터베이스 조회 (대기 필요)
+    users = await db.fetch("SELECT * FROM users")
+    return users
+
+@app.post("/create")
+async def create_item(item: Item):
+    # 외부 API 호출 (대기 필요)
+    response = await httpx.get("https://api.example.com")
+    return response
+```
+
+**성능 비교:**
+| 상황 | 동기 | 비동기 |
+|------|------|--------|
+| I/O 없음 | ✅ 좋음 | 동일 |
+| 데이터베이스 | ❌ 느림 (블로킹) | ✅ 빠름 |
+| 외부 API | ❌ 느림 (대기) | ✅ 빠름 |
+| 파일 읽기 | ❌ 느림 | ✅ 빠름 |
+
+**초급 권장:** 지금은 동기로 충분합니다. 데이터베이스를 사용할 때 비동기로 전환하면 됩니다.
+
 ### Q: Pydantic 검증이 자동으로 되나요?
 **A:** 네, BaseModel을 상속한 클래스에서 타입을 지정하면 자동으로 검증됩니다.
 
 ### Q: 프로덕션 환경에서는 어떻게 배포하나요?
 **A:** gunicorn/uvicorn + Docker + Kubernetes 또는 클라우드 서비스를 사용합니다.
+
+### Q: 모델에서 기본값을 지정하면 프론트에서 안 보내도 되나요?
+**A:** 네! 기본값이 있는 필드는 선택적이므로 프론트에서 생략할 수 있습니다. 예: `status: bool = False`
+
+### Q: 함수 내에서 글로벌 변수를 수정하려면 어떻게 하나요?
+**A:** `global` 키워드를 함수 시작 부분에 추가해야 합니다.
+```python
+@app.post("/increment")
+def increment():
+    global counter  # 이 줄 필수!
+    counter += 1
+    return counter
+```
+
+### Q: JavaScript에서 서버 요청 완료를 기다려야 하나요?
+**A:** 네, 비동기 함수를 사용할 때는 `await`를 붙여야 순서가 보장됩니다.
+```javascript
+await updateStatus(id);  // 완료 대기
+await get_todolist()     // 그 다음 실행
+```
+
+### Q: fetch로 보낸 JSON 데이터를 서버에서 받으려면?
+**A:** Pydantic 모델로 정의하면 자동 검증됩니다. 프론트에서 `{ "todo": "할일" }` 형식으로 보내야 합니다.
+
+### Q: 모델 객체를 리스트에 추가할 때 어떻게 해야 하나요?
+**A:** `.dict()` 메서드로 딕셔너리로 변환한 후 추가합니다.
+```python
+item_dict = item.dict()
+todolist.append(item_dict)
+```
 
 ---
 
