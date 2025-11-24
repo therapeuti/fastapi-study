@@ -546,15 +546,3 @@ await get_todolist()     // 그 다음 실행
 item_dict = item.dict()
 todolist.append(item_dict)
 ```
-
----
-
-## 📞 피드백
-
-각 장을 학습하면서 피드백이 있으시면 [FastAPI GitHub Issues](https://github.com/tiangolo/fastapi/issues)에 정리된 내용을 참고하세요.
-
----
-
-**Happy Learning! 🎉**
-
-Flask 개발자라면 FastAPI를 배우는 것이 아주 자연스러울 것입니다. 차근차근 따라가세요!

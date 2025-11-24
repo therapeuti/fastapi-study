@@ -66,9 +66,9 @@ document.addEventListener('click', async (e) => {
 async function get_todolist() {
     const response = await fetch('/api/todo/');
     const data = await response.json();
-    console.log('조회 : ', data.todolist);
+    console.log('조회 : ', data);
 
-    addTodolist(data.todolist)
+    addTodolist(data)
 }
 
 
