@@ -18,8 +18,8 @@
         <div class="header-decoration"></div>
     </div>
 
-    <form id="todo-form" method="post" action="/api/todo">
-        <input type="text" id="todo-input" placeholder="할 일 추가" required>
+    <form id="todo-form" method="POST" action="/api/todo">
+        <input type="text" id="todo-input" name="todo" placeholder="할 일 추가" required>
         <button type="submit" id="submit">추가</button>
     </form>
 
@@ -27,12 +27,11 @@
         <ul id="todo-list"> 
             <!-- 결과 출력 -->
             {% for todo in todolist %}
-                <li data-id="{{ todo.id }}" class="{{ todo.status }}">{{ todo.todo }} 
+                <li data-id="{{ todo.id }}" class="{{ todo.status | lower }}">{{ todo.todo }} 
                     <button data-id="{{ todo.id }}"><i class="bi bi-trash3"></i></button>
                 </li>
             {% endfor %}
-        </ul>
-
+            
     {% else %}
         <div class="empty-message">
             <i class="bi bi-list-task"></i>
@@ -40,5 +39,7 @@
             <p>새로운 할 일을 추가해보세요!</p>
         </div>
     {% endif %}
+        </ul>
+
 </body>
 </html>

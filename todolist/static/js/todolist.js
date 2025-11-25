@@ -119,6 +119,6 @@ async function deleteTodo(todoid) {
     console.log(todoid)
     await fetch(`/api/todo/${todoid}`, {
         method: 'delete',
-        headers: {'content-type':'application/json'},
+        headers: {'content-type':'application/json'}
     })
 }
