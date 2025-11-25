@@ -757,6 +757,247 @@ def update_item(item_id: int, item: Item):
 
 ---
 
+## 11. HTML Form 데이터 전송
+
+### 11.1 Form 데이터란?
+
+HTML `<form>` 요소에서 제출되는 데이터는 기본적으로 `application/x-www-form-urlencoded` 또는 `multipart/form-data` 형식으로 전송됩니다.
+
+### 11.2 Form 데이터 받기 (URLencoded)
+
+**HTML:**
+```html
+<form method="POST" action="/submit">
+    <input type="text" name="username" placeholder="사용자명">
+    <input type="password" name="password" placeholder="비밀번호">
+    <button type="submit">제출</button>
+</form>
+```
+
+**FastAPI 백엔드:**
+```python
+from fastapi import FastAPI, Form
+
+app = FastAPI()
+
+@app.post("/submit")
+async def submit_form(username: str = Form(...), password: str = Form(...)):
+    return {"username": username, "password": password}
+```
+
+**설명:**
+- `Form(...)`: HTML Form 데이터를 받음
+- `...`: 필수 필드
+
+### 11.3 여러 Form 필드
+
+```python
+from fastapi import FastAPI, Form
+
+app = FastAPI()
+
+@app.post("/register")
+async def register(
+    username: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    age: int = Form(...),
+    newsletter: bool = Form(False)
+):
+    return {
+        "username": username,
+        "email": email,
+        "password": password,
+        "age": age,
+        "newsletter": newsletter
+    }
+```
+
+### 11.4 Form + Pydantic 모델 (권장)
+
+**문제:** Form 필드가 많으면 매개변수가 너무 많아짐
+
+**해결:** Pydantic 모델을 사용하되, 각 필드에 `Form()` 지정
+
+```python
+from fastapi import FastAPI, Form
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class UserRegistration(BaseModel):
+    username: str
+    email: str
+    password: str
+    age: int
+    newsletter: bool = False
+
+# ❌ 이렇게 하면 안 됨 (JSON Body 형식을 기대함)
+# @app.post("/register")
+# async def register(user: UserRegistration):
+#     return user
+
+# ✅ 올바른 방법: 각 필드를 Form으로 지정
+@app.post("/register")
+async def register(
+    username: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    age: int = Form(...),
+    newsletter: bool = Form(False)
+):
+    user = UserRegistration(
+        username=username,
+        email=email,
+        password=password,
+        age=age,
+        newsletter=newsletter
+    )
+    return user
+```
+
+### 11.5 Pydantic 모델 직접 사용 (더 간단)
+
+**FastAPI 0.109+에서 가능:**
+```python
+from fastapi import FastAPI, Form
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class UserRegistration(BaseModel):
+    username: str
+    email: str
+    password: str
+    age: int
+    newsletter: bool = False
+
+@app.post("/register")
+async def register(user: UserRegistration = Form(...)):
+    return user
+```
+
+### 11.6 파일 업로드 + Form 데이터
+
+```python
+from fastapi import FastAPI, Form, File, UploadFile
+
+app = FastAPI()
+
+@app.post("/upload")
+async def upload(
+    name: str = Form(...),
+    file: UploadFile = File(...)
+):
+    return {
+        "name": name,
+        "filename": file.filename,
+        "content_type": file.content_type
+    }
+```
+
+**HTML:**
+```html
+<form method="POST" action="/upload" enctype="multipart/form-data">
+    <input type="text" name="name" placeholder="이름">
+    <input type="file" name="file">
+    <button type="submit">업로드</button>
+</form>
+```
+
+### 11.7 Form vs JSON Body
+
+| 방식 | Content-Type | 용도 | 예시 |
+|------|-------------|------|------|
+| **Form** | application/x-www-form-urlencoded | HTML Form 제출 | 로그인, 회원가입 |
+| **JSON** | application/json | API 요청 | fetch API, REST 클라이언트 |
+| **Multipart** | multipart/form-data | 파일 업로드 | 이미지, 문서 업로드 |
+
+### 11.8 실제 예제: TODO 추가 (Form)
+
+**HTML:**
+```html
+<form method="POST" action="/api/todo/add">
+    <input type="text" name="todo" placeholder="할 일 입력" required>
+    <input type="hidden" name="status" value="false">
+    <button type="submit">추가</button>
+</form>
+```
+
+**FastAPI:**
+```python
+from fastapi import FastAPI, Form
+from fastapi.responses import RedirectResponse
+
+app = FastAPI()
+todolist = []
+todo_id = 1
+
+@app.post("/api/todo/add")
+async def add_todo(todo: str = Form(...), status: str = Form(...)):
+    global todo_id
+    new_todo = {
+        "id": todo_id,
+        "todo": todo,
+        "status": status.lower() == "true"
+    }
+    todolist.append(new_todo)
+    todo_id += 1
+    return RedirectResponse(url="/", status_code=303)  # 페이지 새로고침
+```
+
+### 11.9 Form + JavaScript fetch (JSON 전송)
+
+**HTML:**
+```html
+<form id="todo-form">
+    <input type="text" id="todo-input" placeholder="할 일 입력" required>
+    <button type="submit">추가</button>
+</form>
+```
+
+**JavaScript:**
+```javascript
+document.getElementById('todo-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const todoInput = document.getElementById('todo-input');
+    const todoValue = todoInput.value;
+
+    // Form 데이터를 JSON으로 변환해서 전송
+    await fetch('/api/todo/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            todo: todoValue,
+            status: false
+        })
+    });
+
+    todoInput.value = '';
+    location.reload();
+});
+```
+
+**FastAPI (JSON 받음):**
+```python
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class TodoCreate(BaseModel):
+    todo: str
+    status: bool = False
+
+@app.post("/api/todo/")
+async def add_todo(todo: TodoCreate):
+    # JSON 형식으로 받음
+    return {"created": todo}
+```
+
+---
+
 ## 요약
 
 ### Pydantic 모델의 장점
@@ -774,5 +1015,11 @@ def update_item(item_id: int, item: Item):
 - `model_validator()`: 모델 수준 검증
 - `model_dump()`: 딕셔너리로 변환
 - `model_dump_json()`: JSON 문자열로 변환
+- `Form()`: HTML Form 데이터 받기
+
+### 데이터 전송 방식
+- **Form**: HTML `<form>` 제출 (SSR 방식)
+- **JSON**: JavaScript fetch (REST API 방식)
+- **Multipart**: 파일 업로드
 
 **다음 장**: Response Model과 상태 코드에 대해 배웁니다.
